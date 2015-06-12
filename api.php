@@ -134,7 +134,7 @@
 			} else {
 				$uuidPost = $this->generate_uuid();
 				$dateNow = date('Y-m-d H:i:s');
-				$query = "INSERT INTO posts (uuid,slug,title,body,blnPublished,date_added,uuidUser,blnDeleted) VALUES ('$uuidPost','$slug','$title','$body',0,'$uuidUser','$dateNow',0)";
+				$query = "INSERT INTO posts (uuid,slug,title,body,blnPublished,date_added,uuidUser,blnDeleted) VALUES ('$uuidPost','$slug','$title','$body',0,'$dateNow','$uuidUser',0)";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);				
 			}
