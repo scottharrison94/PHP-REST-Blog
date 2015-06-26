@@ -107,7 +107,7 @@
 		private function post(){
 			$postSlug = (!empty($this->_request['slug']) ? $this->_request['slug'] : NULL);
 			if (!empty($postSlug)){
-				$query="SELECT P.uuid,P.slug, P.title, P.body, P.date_added, P.allowComments, U.username, C.uuid AS uuidComment, C.name, C.text, C.date_added AS comment_date FROM posts P JOIN users U ON U.uuid = P.uuidUser LEFT JOIN comments C ON C.uuidPost = P.uuid WHERE P.slug = '$postSlug' AND P.blnDeleted = 0";		
+				$query="SELECT P.uuid,P.slug, P.title, P.body, P.date_added, P.allowComments, U.username, C.uuid AS uuidComment, C.name, C.text, C.date_added AS comment_date, CAT.title AS category_title, CAT.uuid AS category_uuid, S.uuid AS status_uuid, S.title AS status_title FROM posts P JOIN users U ON U.uuid = P.uuidUser JOIN status S ON S.uuid = P.uuidStatus JOIN categories CAT ON CAT.uuid = P.uuidCategory LEFT JOIN comments C ON C.uuidPost = P.uuid WHERE P.slug = '$postSlug' AND P.blnDeleted = 0";		
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				if($r->num_rows > 0) {
 					$result = array();
