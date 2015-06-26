@@ -82,7 +82,9 @@
 				$query = "UPDATE users SET token = '' WHERE username = '$username' AND token = '$token'";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				$this->response($this->json(array('status'=>'Success')),200);
-			} 
+			} else {
+				$this->response($this->json(array('status'=>'Fail','msg'=>'Incorrect parameters')),200);
+			}
 		}
 
 		/* Get All Blog Posts */
@@ -121,7 +123,7 @@
 
 		/* Upsert blog post */
 		private function savePost(){
-			if($this->validToken($this->_request['token'])){
+			if($this->validToken($this->_request['token'],$this->_request['uuidUser'])){
 				$uuidUser = $this->_request['uuidUser'];
 				$slug = $this->_request['slug'];
 				$title = $this->_request['title'];
@@ -158,7 +160,7 @@
 
 		/* Check Token */
 		private function validToken($token, $uuidUser){
-			$query = "SELECT uuid, token FROM users WHERE token = '$token' AND uuid = '$4uuidUser'";	
+			$query = "SELECT uuid, token FROM users WHERE token = '$token' AND uuid = '$uuidUser'";	
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 			if($r->num_rows > 0) {
 				return true;
