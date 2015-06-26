@@ -153,7 +153,7 @@
 			$date = date('Y-m-d H:i:s');
 			$query = "INSERT INTO comments (uuid, name, text, date_added, blnDeleted, uuidPost) VALUES ('$uuid','$name','$comment','$date',0,'$uuidPost')";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-			$this->response($this->json(array('status'=>'Success','msg'=>'Comment added'))),200;
+			$this->response($this->json(array('status'=>'Success','msg'=>'Comment added')),200);
 		}
 
 		/* Check Token */
