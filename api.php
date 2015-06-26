@@ -195,6 +195,20 @@
 			}
 		}
 
+		private function saveCategory(){
+			if($this->validToken($this->_request['token'],$this->_request['uuidUser'])){
+				$uuid = $this->generate_uuid();
+				$title = $this->_request['title'];
+				$slug = $this->_request['slug'];
+				$query = "INSERT INTO categories (uuid, title, slug) VALUES ('$uuid', '$title', '$slug')";
+				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+				$this->response($this->json(array('status'=>'Success','msg'=>'Category added')),200);				
+			} else {
+				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 401);
+			}
+
+		}
+
 		private function getStatuses(){
 			$query = "SELECT uuid, title FROM status";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
