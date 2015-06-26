@@ -121,26 +121,52 @@
 
 		/* Upsert blog post */
 		private function savePost(){
-			$uuidUser = $this->_request['uuidUser'];
-			$slug = $this->_request['slug'];
-			$title = $this->_request['title'];
-			$body = $this->_request['body'];
-			$query = "SELECT slug FROM posts WHERE slug = '$slug'";
-			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-			if ($r->num_rows > 0){
-				$query = "UPDATE posts SET title = '$title', body = '$body' WHERE slug = '$slug'";
+			if($this->validToken($this->_request['token'])){
+				$uuidUser = $this->_request['uuidUser'];
+				$slug = $this->_request['slug'];
+				$title = $this->_request['title'];
+				$body = $this->_request['body'];
+				$query = "SELECT slug FROM posts WHERE slug = '$slug'";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-				$this->response($this->json(array('status'=>'Success','msg'=>'Post updated')),200);
+				if ($r->num_rows > 0){
+					$query = "UPDATE posts SET title = '$title', body = '$body' WHERE slug = '$slug'";
+					$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+					$this->response($this->json(array('status'=>'Success','msg'=>'Post updated')),200);
+				} else {
+					$uuidPost = $this->generate_uuid();
+					$dateNow = date('Y-m-d H:i:s');
+					$query = "INSERT INTO posts (uuid,slug,title,body,blnPublished,date_added,uuidUser,blnDeleted) VALUES ('$uuidPost','$slug','$title','$body',0,'$dateNow','$uuidUser',0)";
+					$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+					$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);				
+				}
 			} else {
-				$uuidPost = $this->generate_uuid();
-				$dateNow = date('Y-m-d H:i:s');
-				$query = "INSERT INTO posts (uuid,slug,title,body,blnPublished,date_added,uuidUser,blnDeleted) VALUES ('$uuidPost','$slug','$title','$body',0,'$dateNow','$uuidUser',0)";
-				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-				$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);				
+				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 401);
 			}
 		}
 
 		/* Insert comment */
+		private function saveComment(){
+			$uuid = $this->generate_uuid();
+			$uuidPost = $this->_request['uuidPost'];
+			$name = $this->_request['name'];
+			$comment = $this->_request['comment'];
+			$date = date('Y-m-d H:i:s');
+			$query = "INSERT INTO comments (uuid, name, text, date_added, blnDeleted, uuidPost) VALUES ('$uuid','$name','$comment','$date',0,'$uuidPost')";
+			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+			$this->response($this->json(array('status'=>'Success','msg'=>'Comment added'))),200;
+		}
+
+		/* Check Token */
+		private function validToken($token, $uuidUser){
+			$query = "SELECT uuid, token FROM users WHERE token = '$token' AND uuid = '$4uuidUser'";	
+			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+			if($r->num_rows > 0) {
+				return true;
+			} else {
+				return false;
+			}
+
+		}
 
 
 
