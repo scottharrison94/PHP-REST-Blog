@@ -89,7 +89,7 @@
 
 		/* Get All Blog Posts */
 		private function posts(){
-			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added FROM posts P JOIN users U ON U.uuid = P.uuidUser WHERE P.blnPublished = 1 AND P.blnDeleted = 0 ORDER BY date_added DESC";
+			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category FROM posts P JOIN users U ON U.uuid = P.uuidUser JOIN categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 ORDER BY date_added DESC";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 			$result = array();
 			while($row = $r->fetch_assoc()){
@@ -107,10 +107,13 @@
 		private function post(){
 			$postSlug = (!empty($this->_request['slug']) ? $this->_request['slug'] : NULL);
 			if (!empty($postSlug)){
-				$query="SELECT P.uuid,P.slug, P.title, P.body, P.date_added, U.username, C.uuid AS uuidComment, C.name, C.text FROM posts P JOIN users U ON U.uuid = P.uuidUser LEFT JOIN comments C ON C.uuidPost = P.uuid WHERE P.slug = '$postSlug' AND P.blnDeleted = 0 LIMIT 1";		
+				$query="SELECT P.uuid,P.slug, P.title, P.body, P.date_added, U.username, C.uuid AS uuidComment, C.name, C.text, C.date_added AS comment_date FROM posts P JOIN users U ON U.uuid = P.uuidUser LEFT JOIN comments C ON C.uuidPost = P.uuid WHERE P.slug = '$postSlug' AND P.blnDeleted = 0";		
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				if($r->num_rows > 0) {
-					$result = $r->fetch_assoc();
+					$result = array();
+					while($row = $r->fetch_assoc()){
+						$result[] = $row;
+					}
 					// If success everythig is good send header as "OK" and user details
 					$this->response($this->json($result), 200);
 				} else {
@@ -148,14 +151,18 @@
 
 		/* Insert comment */
 		private function saveComment(){
-			$uuid = $this->generate_uuid();
-			$uuidPost = $this->_request['uuidPost'];
-			$name = $this->_request['name'];
-			$comment = $this->_request['comment'];
-			$date = date('Y-m-d H:i:s');
-			$query = "INSERT INTO comments (uuid, name, text, date_added, blnDeleted, uuidPost) VALUES ('$uuid','$name','$comment','$date',0,'$uuidPost')";
-			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-			$this->response($this->json(array('status'=>'Success','msg'=>'Comment added')),200);
+			if ($this->_request['uuidPost']){
+				$uuid = $this->generate_uuid();
+				$uuidPost = $this->_request['uuidPost'];
+				$name = $this->_request['name'];
+				$text = $this->_request['text'];
+				$date = date('Y-m-d H:i:s');
+				$query = "INSERT INTO comments (uuid, name, text, date_added, blnDeleted, uuidPost) VALUES ('$uuid','$name','$text','$date',0,'$uuidPost')";
+				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+				$this->response($this->json(array('status'=>'Success','msg'=>'Comment added')),200);
+			} else {
+				$this->response($this->json(array('status'=>'Failed','msg'=>'Invalid parameters')), 200);
+			}
 		}
 
 		/* Check Token */
@@ -168,6 +175,21 @@
 				return false;
 			}
 
+		}
+
+		private function getCategories(){
+			$query = "SELECT uuid, title, slug FROM categories";
+			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+			if($r->num_rows > 0) {
+				$result = array();
+				while($row = $r->fetch_assoc()){
+					$result[] = $row;
+				}
+				// If success everythig is good send header as "OK" and user details
+				$this->response($this->json($result), 200);
+			} else {
+				$this->response('', 204);	// If no records "No Content" status
+			}
 		}
 
 
