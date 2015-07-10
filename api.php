@@ -8,7 +8,7 @@
 		const DB_SERVER = "127.0.0.1";
 		const DB_USER = "root";
 		const DB_PASSWORD = "123";	
-		const DB = "blog";
+		const DB = "beyond_local";
 
 		private $db = NULL;
 		private $mysqli = NULL;
@@ -89,7 +89,7 @@
 
 		/* Get All Blog Posts */
 		private function posts(){
-			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category, S.title AS status FROM posts P JOIN status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published' ORDER BY date_added DESC";
+			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category, S.title AS status FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published' ORDER BY date_added DESC";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 			$result = array();
 			while($row = $r->fetch_assoc()){
@@ -107,7 +107,7 @@
 		private function post(){
 			$postSlug = (!empty($this->_request['slug']) ? $this->_request['slug'] : NULL);
 			if (!empty($postSlug)){
-				$query="SELECT P.uuid,P.slug, P.title, P.body, P.date_added, P.allowComments, U.username, C.uuid AS uuidComment, C.name, C.text, C.date_added AS comment_date, CAT.title AS category_title, CAT.uuid AS category_uuid, S.uuid AS status_uuid, S.title AS status_title FROM posts P JOIN users U ON U.uuid = P.uuidUser JOIN status S ON S.uuid = P.uuidStatus JOIN categories CAT ON CAT.uuid = P.uuidCategory LEFT JOIN comments C ON C.uuidPost = P.uuid WHERE P.slug = '$postSlug' AND P.blnDeleted = 0";		
+				$query="SELECT P.uuid,P.slug, P.title, P.body, P.date_added, P.allowComments, U.username, C.uuid AS uuidComment, C.name, C.text, C.date_added AS comment_date, CAT.title AS category_title, CAT.uuid AS category_uuid, S.uuid AS status_uuid, S.title AS status_title FROM blog_posts P JOIN users U ON U.uuid = P.uuidUser JOIN blog_status S ON S.uuid = P.uuidStatus JOIN categories CAT ON CAT.uuid = P.uuidCategory LEFT JOIN blog_comments C ON C.uuidPost = P.uuid WHERE P.slug = '$postSlug' AND P.blnDeleted = 0";		
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				if($r->num_rows > 0) {
 					$result = array();
@@ -137,13 +137,13 @@
 				$query = "SELECT slug FROM posts WHERE slug = '$slug'";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				if ($r->num_rows > 0){
-					$query = "UPDATE posts SET title = '$title', body = '$body', allowComments = $allowComments, uuidCategory = '$uuidCategory', uuidStatus = '$uuidStatus' WHERE slug = '$slug'";
+					$query = "UPDATE blog_posts SET title = '$title', body = '$body', allowComments = $allowComments, uuidCategory = '$uuidCategory', uuidStatus = '$uuidStatus' WHERE slug = '$slug'";
 					$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 					$this->response($this->json(array('status'=>'Success','msg'=>'Post updated')),200);
 				} else {
 					$uuidPost = $this->generate_uuid();
 					$dateNow = date('Y-m-d H:i:s');
-					$query = "INSERT INTO posts (uuid,slug,title,body,blnPublished,date_added,uuidUser,blnDeleted) VALUES ('$uuidPost','$slug','$title','$body',0,'$dateNow','$uuidUser',0)";
+					$query = "INSERT INTO blog_posts (uuid,slug,title,body,blnPublished,date_added,uuidUser,blnDeleted) VALUES ('$uuidPost','$slug','$title','$body',0,'$dateNow','$uuidUser',0)";
 					$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 					$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);				
 				}
@@ -160,7 +160,7 @@
 				$name = $this->_request['name'];
 				$text = $this->_request['text'];
 				$date = date('Y-m-d H:i:s');
-				$query = "INSERT INTO comments (uuid, name, text, date_added, blnDeleted, uuidPost) VALUES ('$uuid','$name','$text','$date',0,'$uuidPost')";
+				$query = "INSERT INTO blog_comments (uuid, name, text, date_added, blnDeleted, uuidPost) VALUES ('$uuid','$name','$text','$date',0,'$uuidPost')";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				$this->response($this->json(array('status'=>'Success','msg'=>'Comment added')),200);
 			} else {
@@ -181,7 +181,7 @@
 		}
 
 		private function getCategories(){
-			$query = "SELECT uuid, title, slug FROM categories";
+			$query = "SELECT uuid, title, slug FROM blog_categories";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 			if($r->num_rows > 0) {
 				$result = array();
@@ -200,7 +200,7 @@
 				$uuid = $this->generate_uuid();
 				$title = $this->_request['title'];
 				$slug = $this->_request['slug'];
-				$query = "INSERT INTO categories (uuid, title, slug) VALUES ('$uuid', '$title', '$slug')";
+				$query = "INSERT INTO blog_categories (uuid, title, slug) VALUES ('$uuid', '$title', '$slug')";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				$this->response($this->json(array('status'=>'Success','msg'=>'Category added')),200);				
 			} else {
@@ -210,7 +210,7 @@
 		}
 
 		private function getStatuses(){
-			$query = "SELECT uuid, title FROM status";
+			$query = "SELECT uuid, title FROM blog_status";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 			if($r->num_rows > 0) {
 				$result = array();
