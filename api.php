@@ -90,9 +90,6 @@
 		/* Get All Blog Posts */
 		private function posts(){
 			$pageNum = (!empty($this->_request['pageNum']) && is_numeric($this->_request['pageNum']) ? $this->_request['pageNum'] * 5 : 0);
-			if ($pageNum < 0){
-				$pageNum = 0;
-			}
 			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category, S.title AS status, (SELECT COUNT(P.uuid) FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published') AS total FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published' GROUP BY P.uuid ORDER BY date_added DESC LIMIT $pageNum, 5";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 			$result = array();
