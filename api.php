@@ -134,8 +134,9 @@
 				$allowComments = $this->_request['allowComments'];
 				$uuidCategory = $this->_request['uuidCategory'];
 				$uuidStatus = $this->_request['uuidStatus'];
-				$query = "SELECT slug FROM posts WHERE slug = '$slug'";
+				$query = "SELECT slug FROM blog_posts WHERE slug = '$slug'";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+				$this->response($r->num_rows, 200);
 				if ($r->num_rows > 0){
 					$query = "UPDATE blog_posts SET title = '$title', body = '$body', allowComments = $allowComments, uuidCategory = '$uuidCategory', uuidStatus = '$uuidStatus' WHERE slug = '$slug'";
 					$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
