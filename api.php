@@ -133,32 +133,79 @@
 							blog_posts P
 						JOIN
 							blog_status S
-							ON
-								S.uuid = P.uuidStatus
+						ON
+							S.uuid = P.uuidStatus
 						JOIN
-							users U 
-							ON U.uuid = P.uuidUser 
+							users U
+						ON
+							U.uuid = P.uuidUser
 						JOIN
 							blog_categories C
-							ON C.uuid = P.uuidCategory 
-						WHERE P.blnDeleted = 0
-							AND S.title = 'published'
+						ON
+							C.uuid = P.uuidCategory
+						WHERE
+							P.blnPublished = 1
+						AND
+							P.blnDeleted = 0
+						AND
+							S.title = 'published'
 					) AS total
-				FROM 
+					,(
+						SELECT
+							COUNT(*)
+						FROM
+							blog_comments BC
+						WHERE
+							uuidPost = P.uuid
+					) AS commentCount
+					,(
+						SELECT
+							BC.name
+						FROM
+							blog_comments BC
+						WHERE 
+							uuidPost = P.uuid
+						ORDER BY
+							BC.date_added DESC
+						LIMIT 
+							0,1
+					) AS commentName
+					,(
+						SELECT
+							BC.text
+						FROM
+							blog_comments BC
+						WHERE
+							uuidPost = P.uuid
+						ORDER BY
+							BC.date_added DESC
+						LIMIT
+							0,1
+					) AS commentText
+				FROM
 					blog_posts P
-				JOIN 
+				JOIN
 					blog_status S
-					ON S.uuid = P.uuidStatus
+				ON
+					S.uuid = P.uuidStatus
 				JOIN
 					users U
-					ON U.uuid = P.uuidUser
+				ON
+					U.uuid = P.uuidUser
 				JOIN
 					blog_categories C
-					ON C.uuid = P.uuidCategory
-				WHERE P.blnDeleted = 0
-					AND S.title = 'published'
-				GROUP BY P.uuid
-				ORDER BY date_added DESC
+				ON
+					C.uuid = P.uuidCategory
+				WHERE
+					P.blnPublished = 1
+				AND
+					P.blnDeleted = 0
+				AND
+					S.title = 'published'
+				GROUP BY
+					P.uuid
+				ORDER BY
+					date_added DESC
 				LIMIT :pageNum, 5
 			");
 			$getBlogPosts->execute(array(
