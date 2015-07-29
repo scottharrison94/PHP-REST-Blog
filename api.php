@@ -1,20 +1,17 @@
 <?php
  	require_once("Rest.inc.php");
+ 	require_once("Db_config.php");
 	
-	class API extends REST {
+	class API extends DB_CONFIG {
 	
-		public $data = "";
-		
-		const DB_SERVER = "127.0.0.1";
-		const DB_USER = "root";
-		const DB_PASSWORD = "123";	
-		const DB = "beyond_local";
+		protected $data = "";
 
-		private $db = NULL;
-		private $pdo = NULL;
+		protected $db = NULL;
+		protected $pdo = NULL;
 		public function __construct(){
 			parent::__construct();				// Init parent contructor
-			$this->dbConnect();					// Initiate Database connection
+			$siteName = $this->_request['site_name'];
+			$this->setDBconfig($siteName);					// Initiate Database connection
 		}
 
 		/*
@@ -30,14 +27,6 @@
 			);
 		}
 		
-		/*
-		 *  Connect to Database
-		*/
-		private function dbConnect(){
-			$this->pdo = new PDO('mysql:host='.self::DB_SERVER.';dbname='.self::DB, self::DB_USER, self::DB_PASSWORD);
-			$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-			$this->pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, FALSE);
-		}
 		
 		/*
 		 * Dynmically call the method based on the query string
@@ -50,7 +39,7 @@
 				$this->response('',404); // If the method not exist with in this class "Page not found".
 		}
 
-		private function login(){
+		private function login(){;
 			$username = $this->_request['username'];
 			$password = $this->_request['password'];
 
@@ -177,7 +166,8 @@
 			$getBlogPosts->execute(array(
 				':pageNum' => $pageNum
 			));
-			$result = $getAssets->fetchAll(PDO::FETCH_ASSOC);
+			$result = $getBlogPosts->fetchAll(PDO::FETCH_ASSOC);
+			$this->response($this->json($result), 200);
 			// If success everythig is good send header as "OK" and user details
 			if (count($result)){
 				$this->response($this->json($result), 200);
@@ -308,7 +298,7 @@
 				$allowComments = $this->_request['allowComments'];
 				$uuidCategory = $this->_request['uuidCategory'];
 				$uuidStatus = $this->_request['uuidStatus'];
-				$query = $this->pdo->prepare("
+				$checkPostExists = $this->pdo->prepare("
 					SELECT
 						slug
 					FROM
@@ -316,11 +306,10 @@
 					WHERE
 						slug = :slug
 				");
-				$query->execute(array(
+				$checkPostExists->execute(array(
 					':slug' => $slug
 				));
-				$result = $getSinglePost->fetchAll(PDO::FETCH_ASSOC);
-				$this->response(count($result), 200);
+				$result = $checkPostExists->fetch(PDO::FETCH_ASSOC);
 				if (count($result)){
 					$updatePost = $this->pdo->prepare("
 						UPDATE
@@ -380,7 +369,7 @@
 					$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);				
 				}
 			} else {
-				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 401);
+				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 200);
 			}
 		}
 
@@ -438,9 +427,9 @@
 			");
 			$checkToken->execute(array(
 				':token' => $token,
-				':uuid' => $uuid
+				':uuid' => $uuidUser
 			));
-			$result = $checkToken->fetchAll(PDO::FETCH_ASSOC);
+			$result = $checkToken->fetch(PDO::FETCH_ASSOC);
 			if(count($result)) {
 				return true;
 			} else {
@@ -506,7 +495,7 @@
 					blog_status
 			");
 			$getStatuses->execute();
-			$result = $getCategories->fetchAll(PDO::FETCH_ASSOC);
+			$result = $getStatuses->fetchAll(PDO::FETCH_ASSOC);
 			if(count($result)) {
 				// If success everythig is good send header as "OK" and user details
 				$this->response($this->json($result), 200);
