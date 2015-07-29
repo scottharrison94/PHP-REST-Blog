@@ -46,7 +46,7 @@
 			if((int)method_exists($this,$func) > 0)
 				$this->$func();
 			else
-				$this->response('',404); // If the method not exist with in this class "Page not found".
+				$this->response($this->json(array('status'=>'Fail','msg'=>'MEthod not found')),200); // If the method not exist with in this class "Page not found".
 		}
 
 		private function login(){
@@ -69,7 +69,7 @@
 						$result['token'] = $token;
 						$this->response($this->json(array('token'=>$result['token'],'uuidUser'=>$result['uuid'])), 200);
 					} else {
-						$this->response('', 404);
+						$this->response($this->json(array('status'=>'Fail','msg'=>'Incorrect username/password')), 200);
 					}
 				}
 			}
@@ -87,10 +87,10 @@
 			}
 		}
 
-		/* Get All Blog Posts */
+		/* Get All Blog Posts which arent deleted or drafts, for use on the front end */
 		private function posts(){
 			$pageNum = (!empty($this->_request['pageNum']) && is_numeric($this->_request['pageNum']) ? $this->_request['pageNum'] * 5 : 0);
-			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category, S.title AS status, (SELECT COUNT(P.uuid) FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published') AS total FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published' GROUP BY P.uuid ORDER BY date_added DESC LIMIT $pageNum, 5";
+			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category, S.title AS status, (SELECT COUNT(P.uuid) FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published') AS total, (SELECT COUNT(*) FROM blog_comments BC WHERE uuidPost = P.uuid) AS commentCount, (SELECT BC.name FROM blog_comments BC WHERE uuidPost = P.uuid ORDER BY BC.date_added DESC LIMIT 0,1) AS commentName, (SELECT BC.text FROM blog_comments BC WHERE uuidPost = P.uuid ORDER BY BC.date_added DESC LIMIT 0,1) AS commentText FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published' GROUP BY P.uuid ORDER BY date_added DESC LIMIT $pageNum, 5";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 			$result = array();
 			while($row = $r->fetch_assoc()){
@@ -100,11 +100,11 @@
 			if (count($result)){
 				$this->response($this->json($result), 200);
 			} else {
-				$this->response('', 204);	// If no records "No Content" status
+				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
 			}
 		}
 
-		/* Get All Blog Posts including drafts */
+		/* Get All Blog Posts including drafts, for use on the backend */
 		private function allPosts(){
 			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category, S.title AS status, (SELECT COUNT(P.uuid) FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnDeleted = 0 AND S.title = 'published') AS total FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnDeleted = 0 AND S.title = 'published' GROUP BY P.uuid ORDER BY date_added DESC";
 			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
@@ -116,7 +116,7 @@
 			if (count($result)){
 				$this->response($this->json($result), 200);
 			} else {
-				$this->response('', 204);	// If no records "No Content" status
+				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
 			}
 		}
 
@@ -134,10 +134,10 @@
 					// If success everythig is good send header as "OK" and user details
 					$this->response($this->json($result), 200);
 				} else {
-					$this->response('', 204);	// If no records "No Content" status
+					$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
 				}
 			} else {
-				$this->response('', 204);	// If no records "No Content" status
+				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
 			}
 		}
 
@@ -209,7 +209,7 @@
 				// If success everythig is good send header as "OK" and user details
 				$this->response($this->json($result), 200);
 			} else {
-				$this->response('', 204);	// If no records "No Content" status
+				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
 			}
 		}
 
@@ -238,7 +238,7 @@
 				// If success everythig is good send header as "OK" and user details
 				$this->response($this->json($result), 200);
 			} else {
-				$this->response('', 204);	// If no records "No Content" status
+				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
 			}
 		}
 
