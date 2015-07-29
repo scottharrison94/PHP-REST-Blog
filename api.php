@@ -141,8 +141,7 @@
 						JOIN
 							blog_categories C
 							ON C.uuid = P.uuidCategory 
-						WHERE P.blnPublished = 1
-							AND P.blnDeleted = 0
+						WHERE P.blnDeleted = 0
 							AND S.title = 'published'
 					) AS total
 				FROM 
@@ -156,8 +155,7 @@
 				JOIN
 					blog_categories C
 					ON C.uuid = P.uuidCategory
-				WHERE P.blnPublished = 1
-					AND P.blnDeleted = 0
+				WHERE P.blnDeleted = 0
 					AND S.title = 'published'
 				GROUP BY P.uuid
 				ORDER BY date_added DESC
@@ -310,7 +308,7 @@
 					':slug' => $slug
 				));
 				$result = $checkPostExists->fetch(PDO::FETCH_ASSOC);
-				if (count($result)){
+				if (!empty($result)){
 					$updatePost = $this->pdo->prepare("
 						UPDATE
 							blog_posts
@@ -342,20 +340,24 @@
 								,slug
 								,title
 								,body
-								,blnPublished
 								,date_added
 								,uuidUser
 								,blnDeleted
+								,uuidCategory
+								,allowComments
+								,uuidStatus
 							)
 						VALUES (
 							:uuidPost
 							,:slug
 							,:title
 							,:body
-							,0
 							,:dateNow
 							,:uuidUser
 							,0
+							,:uuidCategory
+							,:allowComments
+							,:uuidStatus
 						)
 					");
 					$insertPost->execute(array(
@@ -364,7 +366,10 @@
 						':title' => $title,
 						':body' => $body,
 						':dateNow' => $dateNow,
-						':uuidUser' => $uuidUser
+						':uuidUser' => $uuidUser,
+						':uuidCategory' => $uuidCategory,
+						':allowComments' => $allowComments,
+						':uuidStatus' => $uuidStatus,
 					));
 					$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);				
 				}
