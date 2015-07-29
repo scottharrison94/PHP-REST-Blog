@@ -342,6 +342,7 @@
 				$checkPostExists = $this->pdo->prepare("
 					SELECT
 						slug
+						,uuid
 					FROM
 						blog_posts
 					WHERE
@@ -352,6 +353,7 @@
 				));
 				$result = $checkPostExists->fetch(PDO::FETCH_ASSOC);
 				if (!empty($result)){
+					$uuidPost = $result->uuid;
 					$updatePost = $this->pdo->prepare("
 						UPDATE
 							blog_posts
@@ -414,8 +416,48 @@
 						':allowComments' => $allowComments,
 						':uuidStatus' => $uuidStatus,
 					));
-					$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);				
 				}
+				if (!empty($this->_request['fileName'])){
+					// Get image listOrder
+					$checkImage = $this->pdo->prepare("
+						SELECT
+							MAX(listOrder) AS maxListOrder
+						FROM
+							blog_images
+						WHERE
+							uuidPost = :uuidPost
+					");
+					$checkImage->execute(array(
+						':uuidPost'=>$uuidPost
+					));
+					$listOrder = $checkImage->maxListOrder + 1;
+					// Add image
+					$addImage = $this->pdo->prepare("
+						INSERT INTO
+							blog_images (
+								uuid
+								,uuidPost
+								,path
+								,blnDeleted
+								,listOrder
+							)
+						VALUES (
+							:uuid
+							,:uuidPost
+							,:path
+							,:blnDeleted
+							,:listOrder
+						)
+					");
+					$addImage->execute(array(
+						':uuid' => $this->generate_uuid(),
+						':uuidPost' => $uuidPost,
+						':path' => $this->_request['fileName'],
+						':blnDeleted' => 0,
+						':listOrder' => $listOrder
+					));
+				}
+				$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);	
 			} else {
 				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 200);
 			}
