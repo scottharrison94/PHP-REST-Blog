@@ -144,8 +144,6 @@
 						ON
 							C.uuid = P.uuidCategory
 						WHERE
-							P.blnPublished = 1
-						AND
 							P.blnDeleted = 0
 						AND
 							S.title = 'published'
@@ -197,8 +195,6 @@
 				ON
 					C.uuid = P.uuidCategory
 				WHERE
-					P.blnPublished = 1
-				AND
 					P.blnDeleted = 0
 				AND
 					S.title = 'published'
