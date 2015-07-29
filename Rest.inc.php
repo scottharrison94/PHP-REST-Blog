@@ -1,9 +1,9 @@
 <?php
 	class REST {
 		
-		public $_allow = array();
-		public $_content_type = "application/json";
-		public $_request = array();
+		protected $_allow = array();
+		protected $_content_type = "application/json";
+		protected $_request = array();
 		
 		private $_method = "";		
 		private $_code = 200;
@@ -12,11 +12,11 @@
 			$this->inputs();
 		}
 		
-		public function get_referer(){
+		protected function get_referer(){
 			return $_SERVER['HTTP_REFERER'];
 		}
 		
-		public function response($data,$status){
+		protected function response($data,$status){
 			$this->_code = ($status)?$status:200;
 			$this->set_headers();
 			echo $data;
@@ -33,7 +33,7 @@
 			return ($status[$this->_code])?$status[$this->_code]:$status[500];
 		}
 		
-		public function get_request_method(){
+		protected function get_request_method(){
 			return $_SERVER['REQUEST_METHOD'];
 		}
 		

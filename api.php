@@ -1,20 +1,17 @@
 <?php
  	require_once("Rest.inc.php");
+ 	require_once("Db_config.php");
 	
-	class API extends REST {
+	class API extends DB_CONFIG {
 	
-		public $data = "";
-		
-		const DB_SERVER = "127.0.0.1";
-		const DB_USER = "root";
-		const DB_PASSWORD = "123";	
-		const DB = "beyond_local";
+		protected $data = "";
 
-		private $db = NULL;
-		private $mysqli = NULL;
+		protected $db = NULL;
+		protected $pdo = NULL;
 		public function __construct(){
 			parent::__construct();				// Init parent contructor
-			$this->dbConnect();					// Initiate Database connection
+			$siteName = $this->_request['site_name'];
+			$this->setDBconfig($siteName);					// Initiate Database connection
 		}
 
 		/*
@@ -30,13 +27,6 @@
 			);
 		}
 		
-		/*
-		 *  Connect to Database
-		*/
-		private function dbConnect(){
-			$this->mysqli = new mysqli(self::DB_SERVER, self::DB_USER, self::DB_PASSWORD, self::DB);
-			mysqli_set_charset($this->mysqli,'utf8');
-		}
 		
 		/*
 		 * Dynmically call the method based on the query string
@@ -49,23 +39,44 @@
 				$this->response($this->json(array('status'=>'Fail','msg'=>'MEthod not found')),200); // If the method not exist with in this class "Page not found".
 		}
 
-		private function login(){
+		private function login(){;
 			$username = $this->_request['username'];
 			$password = $this->_request['password'];
 
 			if(!empty($username) && !empty($password)){
-				$query="SELECT uuid, username, password FROM users WHERE username = '$username'LIMIT 1";
-				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-
-				if($r->num_rows > 0) {
-					$result = $r->fetch_assoc();
+				$login = $this->pdo->prepare('
+					SELECT
+						uuid
+						,username
+						,password
+					FROM
+						users
+					WHERE
+						username = :username
+					LIMIT 1
+				');
+				$login->execute(array(
+					':username' => $username
+				));
+				$result = $login->fetch(PDO::FETCH_ASSOC);
+				if (count($result)) {
 					$savedPassword = $result['password'];
 					if(password_verify($password,$savedPassword)){
 						// Passwords match so add a token to db
 						$token = $this->generate_uuid();
 						$userUUID = $result['uuid'];
-						$query="UPDATE users SET token = '$token' WHERE uuid = '$userUUID'";
-						$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+						$updateToken = $this->pdo->prepare('
+							UPDATE
+								users
+							SET
+								token = :token
+							WHERE
+								uuid = :uuid
+						');
+						$updateToken->execute(array(
+							':token'=>$token,
+							':uuid'=>$userUUID
+						));
 						$result['token'] = $token;
 						$this->response($this->json(array('token'=>$result['token'],'uuidUser'=>$result['uuid'])), 200);
 					} else {
@@ -79,8 +90,20 @@
 			$username = $this->_request['username'];
 			$token = $this->_request['token'];
 			if (!empty($username) && !empty($token)){
-				$query = "UPDATE users SET token = '' WHERE username = '$username' AND token = '$token'";
-				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+				$logout = $this->pdo->prepare('
+					UPDATE
+						users
+					SET
+						token = NULL
+					WHERE
+						username = :username
+					AND
+						token = :token
+				');
+				$logout->execute(array(
+					':username' => $username,
+					':token' => $token
+				));
 				$this->response($this->json(array('status'=>'Success')),200);
 			} else {
 				$this->response($this->json(array('status'=>'Fail','msg'=>'Incorrect parameters')),200);
@@ -90,12 +113,61 @@
 		/* Get All Blog Posts which arent deleted or drafts, for use on the front end */
 		private function posts(){
 			$pageNum = (!empty($this->_request['pageNum']) && is_numeric($this->_request['pageNum']) ? $this->_request['pageNum'] * 5 : 0);
-			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category, S.title AS status, (SELECT COUNT(P.uuid) FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published') AS total, (SELECT COUNT(*) FROM blog_comments BC WHERE uuidPost = P.uuid) AS commentCount, (SELECT BC.name FROM blog_comments BC WHERE uuidPost = P.uuid ORDER BY BC.date_added DESC LIMIT 0,1) AS commentName, (SELECT BC.text FROM blog_comments BC WHERE uuidPost = P.uuid ORDER BY BC.date_added DESC LIMIT 0,1) AS commentText FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnPublished = 1 AND P.blnDeleted = 0 AND S.title = 'published' GROUP BY P.uuid ORDER BY date_added DESC LIMIT $pageNum, 5";
-			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-			$result = array();
-			while($row = $r->fetch_assoc()){
-				$result[] = $row;
+			if ($pageNum < 0){
+				$pageNum = 0;
 			}
+			$getBlogPosts = $this->pdo->prepare("
+				SELECT
+					P.uuid
+					,P.slug
+					,P.title
+					,P.body
+					,U.username
+					,P.date_added
+					,C.title AS category
+					,S.title AS status
+					,(
+						SELECT
+							COUNT(P.uuid)
+						FROM
+							blog_posts P
+						JOIN
+							blog_status S
+							ON
+								S.uuid = P.uuidStatus
+						JOIN
+							users U 
+							ON U.uuid = P.uuidUser 
+						JOIN
+							blog_categories C
+							ON C.uuid = P.uuidCategory 
+						WHERE P.blnPublished = 1
+							AND P.blnDeleted = 0
+							AND S.title = 'published'
+					) AS total
+				FROM 
+					blog_posts P
+				JOIN 
+					blog_status S
+					ON S.uuid = P.uuidStatus
+				JOIN
+					users U
+					ON U.uuid = P.uuidUser
+				JOIN
+					blog_categories C
+					ON C.uuid = P.uuidCategory
+				WHERE P.blnPublished = 1
+					AND P.blnDeleted = 0
+					AND S.title = 'published'
+				GROUP BY P.uuid
+				ORDER BY date_added DESC
+				LIMIT :pageNum, 5
+			");
+			$getBlogPosts->execute(array(
+				':pageNum' => $pageNum
+			));
+			$result = $getBlogPosts->fetchAll(PDO::FETCH_ASSOC);
+			$this->response($this->json($result), 200);
 			// If success everythig is good send header as "OK" and user details
 			if (count($result)){
 				$this->response($this->json($result), 200);
@@ -106,12 +178,54 @@
 
 		/* Get All Blog Posts including drafts, for use on the backend */
 		private function allPosts(){
-			$query="SELECT P.uuid, P.slug, P.title, P.body,U.username, P.date_added, C.title AS category, S.title AS status, (SELECT COUNT(P.uuid) FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnDeleted = 0 AND S.title = 'published') AS total FROM blog_posts P JOIN blog_status S ON S.uuid = P.uuidStatus JOIN users U ON U.uuid = P.uuidUser JOIN blog_categories C ON C.uuid = P.uuidCategory WHERE P.blnDeleted = 0 AND S.title = 'published' GROUP BY P.uuid ORDER BY date_added DESC";
-			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-			$result = array();
-			while($row = $r->fetch_assoc()){
-				$result[] = $row;
-			}
+			$getAllPosts = $this->pdo->prepare("
+				SELECT 
+					P.uuid
+					,P.slug
+					,P.title
+					,P.body
+					,U.username
+					,P.date_added
+					,C.title AS category
+					,S.title AS status
+					,(
+						SELECT
+							COUNT(P.uuid)
+						FROM
+							blog_posts P
+						JOIN
+							blog_status S
+							ON
+							S.uuid = P.uuidStatus
+						JOIN
+							users U
+							ON U.uuid = P.uuidUser
+						JOIN
+							blog_categories C
+							ON C.uuid = P.uuidCategory
+						WHERE
+							P.blnDeleted = 0
+							AND S.title = 'published'
+					) AS total
+				FROM
+					blog_posts P
+				JOIN
+					blog_status S
+					ON S.uuid = P.uuidStatus
+				JOIN
+					users U
+					ON U.uuid = P.uuidUser
+				JOIN
+					blog_categories C
+					ON C.uuid = P.uuidCategory
+				WHERE
+					P.blnDeleted = 0
+					AND S.title = 'published'
+				GROUP BY P.uuid
+				ORDER BY date_added DESC
+			");
+			$getAllPosts->execute();
+			$result = $getAllPosts->fetchAll(PDO::FETCH_ASSOC);
 			// If success everythig is good send header as "OK" and user details
 			if (count($result)){
 				$this->response($this->json($result), 200);
@@ -124,13 +238,46 @@
 		private function post(){
 			$postSlug = (!empty($this->_request['slug']) ? $this->_request['slug'] : NULL);
 			if (!empty($postSlug)){
-				$query="SELECT P.uuid,P.slug, P.title, P.body, P.date_added, P.allowComments, U.username, C.uuid AS uuidComment, C.name, C.text, C.date_added AS comment_date, CAT.title AS category_title, CAT.uuid AS category_uuid, S.uuid AS status_uuid, S.title AS status_title FROM blog_posts P JOIN users U ON U.uuid = P.uuidUser JOIN blog_status S ON S.uuid = P.uuidStatus JOIN blog_categories CAT ON CAT.uuid = P.uuidCategory LEFT JOIN blog_comments C ON C.uuidPost = P.uuid WHERE P.slug = '$postSlug' AND P.blnDeleted = 0";		
-				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-				if($r->num_rows > 0) {
-					$result = array();
-					while($row = $r->fetch_assoc()){
-						$result[] = $row;
-					}
+				$getSinglePost = $this->pdo->prepare("
+					SELECT
+						P.uuid
+						,P.slug
+						,P.title
+						,P.body
+						,P.date_added
+						,P.allowComments
+						,U.username
+						,C.uuid AS uuidComment
+						,C.name
+						,C.text
+						,C.date_added AS comment_date
+						,CAT.title AS category_title
+						,CAT.uuid AS category_uuid
+						,S.uuid AS status_uuid
+						,S.title AS status_title
+					FROM
+						blog_posts P
+					JOIN
+						users U
+						ON U.uuid = P.uuidUser
+					JOIN 
+						blog_status S
+						ON S.uuid = P.uuidStatus
+					JOIN
+						blog_categories CAT
+						ON CAT.uuid = P.uuidCategory
+					LEFT JOIN
+						blog_comments C
+						ON C.uuidPost = P.uuid
+					WHERE
+						P.slug = :postSlug
+						AND P.blnDeleted = 0
+				");
+				$getSinglePost->execute(array(
+					':postSlug' => $postSlug
+				));
+				$result = $getSinglePost->fetchAll(PDO::FETCH_ASSOC);
+				if(count($result)) {
 					// If success everythig is good send header as "OK" and user details
 					$this->response($this->json($result), 200);
 				} else {
@@ -151,22 +298,78 @@
 				$allowComments = $this->_request['allowComments'];
 				$uuidCategory = $this->_request['uuidCategory'];
 				$uuidStatus = $this->_request['uuidStatus'];
-				$query = "SELECT slug FROM blog_posts WHERE slug = '$slug'";
-				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-				$this->response($r->num_rows, 200);
-				if ($r->num_rows > 0){
-					$query = "UPDATE blog_posts SET title = '$title', body = '$body', allowComments = $allowComments, uuidCategory = '$uuidCategory', uuidStatus = '$uuidStatus' WHERE slug = '$slug'";
-					$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+				$checkPostExists = $this->pdo->prepare("
+					SELECT
+						slug
+					FROM
+						blog_posts
+					WHERE
+						slug = :slug
+				");
+				$checkPostExists->execute(array(
+					':slug' => $slug
+				));
+				$result = $checkPostExists->fetch(PDO::FETCH_ASSOC);
+				if (count($result)){
+					$updatePost = $this->pdo->prepare("
+						UPDATE
+							blog_posts
+						SET
+							title = :title
+							,body = :body
+							,allowComments = :allowComments
+							,uuidCategory = :uuidCategory
+							,uuidStatus = :uuidStatus
+						WHERE
+							slug = :slug
+					");
+					$updatePost->execute(array(
+						':title' => $title,
+						':body' => $body,
+						':allowComments' => $allowComments,
+						':uuidCategory' => $uuidCategory,
+						':uuidStatus' => $uuidStatus,
+						':slug' => $slug
+					));
 					$this->response($this->json(array('status'=>'Success','msg'=>'Post updated')),200);
 				} else {
 					$uuidPost = $this->generate_uuid();
 					$dateNow = date('Y-m-d H:i:s');
-					$query = "INSERT INTO blog_posts (uuid,slug,title,body,blnPublished,date_added,uuidUser,blnDeleted) VALUES ('$uuidPost','$slug','$title','$body',0,'$dateNow','$uuidUser',0)";
-					$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+					$insertPost = $this->pdo->prepare("
+						INSERT INTO
+							blog_posts (
+								uuid
+								,slug
+								,title
+								,body
+								,blnPublished
+								,date_added
+								,uuidUser
+								,blnDeleted
+							)
+						VALUES (
+							:uuidPost
+							,:slug
+							,:title
+							,:body
+							,0
+							,:dateNow
+							,:uuidUser
+							,0
+						)
+					");
+					$insertPost->execute(array(
+						':uuidPost' => $uuidPost,
+						':slug' => $slug,
+						':title' => $title,
+						':body' => $body,
+						':dateNow' => $dateNow,
+						':uuidUser' => $uuidUser
+					));
 					$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);				
 				}
 			} else {
-				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 401);
+				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 200);
 			}
 		}
 
@@ -178,8 +381,32 @@
 				$name = $this->_request['name'];
 				$text = $this->_request['text'];
 				$date = date('Y-m-d H:i:s');
-				$query = "INSERT INTO blog_comments (uuid, name, text, date_added, blnDeleted, uuidPost) VALUES ('$uuid','$name','$text','$date',0,'$uuidPost')";
-				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+				$saveComment = $this->pdo->prepare("
+					INSERT INTO
+						blog_comments (
+							uuid
+							,name
+							,text
+							,date_added
+							,blnDeleted
+							,uuidPost
+						)
+					VALUES (
+						:uuid
+						,:name
+						,:text
+						,:date
+						,0
+						,:uuidPost
+					)
+				");
+				$saveComment->execute(array(
+					':uuid' => $uuid,
+					':name' => $name,
+					':text' => $text,
+					':date' => $date,
+					':uuidPost' => $uuidPost
+				));
 				$this->response($this->json(array('status'=>'Success','msg'=>'Comment added')),200);
 			} else {
 				$this->response($this->json(array('status'=>'Failed','msg'=>'Invalid parameters')), 200);
@@ -188,9 +415,22 @@
 
 		/* Check Token */
 		private function validToken($token, $uuidUser){
-			$query = "SELECT uuid, token FROM users WHERE token = '$token' AND uuid = '$uuidUser'";	
-			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-			if($r->num_rows > 0) {
+			$checkToken = $this->pdo->prepare("
+				SELECT
+					uuid
+					,token
+				FROM
+					users
+				WHERE
+					token = :token
+					AND uuid = :uuid
+			");
+			$checkToken->execute(array(
+				':token' => $token,
+				':uuid' => $uuidUser
+			));
+			$result = $checkToken->fetch(PDO::FETCH_ASSOC);
+			if(count($result)) {
 				return true;
 			} else {
 				return false;
@@ -199,14 +439,17 @@
 		}
 
 		private function getCategories(){
-			$query = "SELECT uuid, title, slug FROM blog_categories";
-			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-			if($r->num_rows > 0) {
-				$result = array();
-				while($row = $r->fetch_assoc()){
-					$result[] = $row;
-				}
-				// If success everythig is good send header as "OK" and user details
+			$getCategories = $this->pdo->prepare("
+				SELECT
+					uuid
+					,title
+					,slug
+				FROM
+					blog_categories
+			");
+			$getCategories->execute();
+			$result = $getCategories->fetchAll(PDO::FETCH_ASSOC);
+			if(count($result)) {
 				$this->response($this->json($result), 200);
 			} else {
 				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
@@ -218,8 +461,24 @@
 				$uuid = $this->generate_uuid();
 				$title = $this->_request['title'];
 				$slug = $this->_request['slug'];
-				$query = "INSERT INTO blog_categories (uuid, title, slug) VALUES ('$uuid', '$title', '$slug')";
-				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
+				$saveCategory = $this->pdo->prepare("
+					INSERT INTO
+						blog_categories (
+							uuid
+							,title
+							,slug
+						)
+					VALUES (
+						:uuid
+						,:title
+						,:slug
+					)
+				");
+				$saveCategory->execute(array(
+					':uuid' => $uuid,
+					':title' => $title,
+					':slug' => $slug
+				));
 				$this->response($this->json(array('status'=>'Success','msg'=>'Category added')),200);				
 			} else {
 				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 401);
@@ -228,13 +487,16 @@
 		}
 
 		private function getStatuses(){
-			$query = "SELECT uuid, title FROM blog_status";
-			$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
-			if($r->num_rows > 0) {
-				$result = array();
-				while($row = $r->fetch_assoc()){
-					$result[] = $row;
-				}
+			$getStatuses = $this->pdo->prepare("
+				SELECT
+					uuid
+					,title
+				FROM
+					blog_status
+			");
+			$getStatuses->execute();
+			$result = $getStatuses->fetchAll(PDO::FETCH_ASSOC);
+			if(count($result)) {
 				// If success everythig is good send header as "OK" and user details
 				$this->response($this->json($result), 200);
 			} else {
