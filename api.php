@@ -36,7 +36,7 @@
 			if((int)method_exists($this,$func) > 0)
 				$this->$func();
 			else
-				$this->response($this->json(array('status'=>'Fail','msg'=>'MEthod not found')),200); // If the method not exist with in this class "Page not found".
+				$this->response($this->json(array('status'=>'Fail','msg'=>'Method not found')),200); // If the method not exist with in this class "Page not found".
 		}
 
 		private function login(){;
