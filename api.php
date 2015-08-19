@@ -364,6 +364,51 @@
 				$result = $checkPostExists->fetch(PDO::FETCH_ASSOC);
 				if (!empty($result)){
 					$uuidPost = $result['uuid'];
+				} else {
+					$uuidPost = $this->generate_uuid();
+				}
+				if (!empty($this->_request['fileName'])){
+					// Get image listOrder
+					$checkImage = $this->pdo->prepare("
+						SELECT
+							MAX(listOrder) AS maxListOrder
+						FROM
+							blog_images
+						WHERE
+							uuidPost = :uuidPost
+					");
+					$checkImage->execute(array(
+						':uuidPost'=>$uuidPost
+					));
+					$result2 = $checkImage->fetch(PDO::FETCH_ASSOC);
+					$listOrder = $result2['maxListOrder'] + 1;
+					// Add image
+					$addImage = $this->pdo->prepare("
+						INSERT INTO
+							blog_images (
+								uuid
+								,uuidPost
+								,path
+								,blnDeleted
+								,listOrder
+							)
+						VALUES (
+							:uuid
+							,:uuidPost
+							,:path
+							,:blnDeleted
+							,:listOrder
+						)
+					");
+					$addImage->execute(array(
+						':uuid' => $this->generate_uuid(),
+						':uuidPost' => $uuidPost,
+						':path' => $this->_request['fileName'],
+						':blnDeleted' => 0,
+						':listOrder' => $listOrder
+					));
+				}
+				if (!empty($result)){
 					$updatePost = $this->pdo->prepare("
 						UPDATE
 							blog_posts
@@ -386,7 +431,6 @@
 					));
 					$this->response($this->json(array('status'=>'Success','msg'=>'Post updated')),200);
 				} else {
-					$uuidPost = $this->generate_uuid();
 					$dateNow = date('Y-m-d H:i:s');
 					$insertPost = $this->pdo->prepare("
 						INSERT INTO
@@ -425,46 +469,6 @@
 						':uuidCategory' => $uuidCategory,
 						':allowComments' => $allowComments,
 						':uuidStatus' => $uuidStatus,
-					));
-				}
-				if (!empty($this->_request['fileName'])){
-					// Get image listOrder
-					$checkImage = $this->pdo->prepare("
-						SELECT
-							MAX(listOrder) AS maxListOrder
-						FROM
-							blog_images
-						WHERE
-							uuidPost = :uuidPost
-					");
-					$checkImage->execute(array(
-						':uuidPost'=>$uuidPost
-					));
-					$listOrder = $checkImage->maxListOrder + 1;
-					// Add image
-					$addImage = $this->pdo->prepare("
-						INSERT INTO
-							blog_images (
-								uuid
-								,uuidPost
-								,path
-								,blnDeleted
-								,listOrder
-							)
-						VALUES (
-							:uuid
-							,:uuidPost
-							,:path
-							,:blnDeleted
-							,:listOrder
-						)
-					");
-					$addImage->execute(array(
-						':uuid' => $this->generate_uuid(),
-						':uuidPost' => $uuidPost,
-						':path' => $this->_request['fileName'],
-						':blnDeleted' => 0,
-						':listOrder' => $listOrder
 					));
 				}
 				$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);	
