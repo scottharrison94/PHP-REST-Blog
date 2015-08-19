@@ -180,6 +180,7 @@
 						LIMIT
 							0,1
 					) AS commentText
+					,I.path
 				FROM
 					blog_posts P
 				JOIN
@@ -194,6 +195,10 @@
 					blog_categories C
 				ON
 					C.uuid = P.uuidCategory
+				LEFT JOIN
+					blog_images I
+				ON
+					I.uuidPost = P.uuid
 				WHERE
 					P.blnDeleted = 0
 				AND
@@ -202,6 +207,7 @@
 					P.uuid
 				ORDER BY
 					date_added DESC
+					,I.listOrder ASC
 				LIMIT :pageNum, 5
 			");
 			$getBlogPosts->execute(array(
@@ -275,9 +281,9 @@
 			}
 		}
 
-		/* Get Blog Post By ID or SLUG */
+		/* Get Blog Post By SLUG */
 		private function post(){
-			$postSlug = (!empty($this->_request['slug']) ? $this->_request['slug'] : NULL);
+			$postSlug = (!empty($_REQUEST['slug']) ? $_REQUEST['slug'] : NULL);
 			if (!empty($postSlug)){
 				$getSinglePost = $this->pdo->prepare("
 					SELECT
@@ -289,13 +295,14 @@
 						,P.allowComments
 						,U.username
 						,C.uuid AS uuidComment
-						,C.name
-						,C.text
+						,C.name AS comment_name
+						,C.text AS comment_text
 						,C.date_added AS comment_date
 						,CAT.title AS category_title
 						,CAT.uuid AS category_uuid
 						,S.uuid AS status_uuid
 						,S.title AS status_title
+						,I.path
 					FROM
 						blog_posts P
 					JOIN
@@ -310,6 +317,9 @@
 					LEFT JOIN
 						blog_comments C
 						ON C.uuidPost = P.uuid
+					LEFT JOIN
+						blog_images I
+						ON I.uuidPost = P.uuid
 					WHERE
 						P.slug = :postSlug
 						AND P.blnDeleted = 0
@@ -319,7 +329,7 @@
 				));
 				$result = $getSinglePost->fetchAll(PDO::FETCH_ASSOC);
 				if(count($result)) {
-					// If success everythig is good send header as "OK" and user details
+					// If success everything is good send header as "OK" and user details
 					$this->response($this->json($result), 200);
 				} else {
 					$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
@@ -353,7 +363,7 @@
 				));
 				$result = $checkPostExists->fetch(PDO::FETCH_ASSOC);
 				if (!empty($result)){
-					$uuidPost = $result->uuid;
+					$uuidPost = $result['uuid'];
 					$updatePost = $this->pdo->prepare("
 						UPDATE
 							blog_posts
