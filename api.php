@@ -371,42 +371,62 @@
 					// Get image listOrder
 					$checkImage = $this->pdo->prepare("
 						SELECT
-							MAX(listOrder) AS maxListOrder
+							path
 						FROM
 							blog_images
 						WHERE
 							uuidPost = :uuidPost
+						AND
+							listOrder = 1
 					");
 					$checkImage->execute(array(
 						':uuidPost'=>$uuidPost
 					));
 					$result2 = $checkImage->fetch(PDO::FETCH_ASSOC);
-					$listOrder = $result2['maxListOrder'] + 1;
 					// Add image
-					$addImage = $this->pdo->prepare("
-						INSERT INTO
-							blog_images (
-								uuid
-								,uuidPost
-								,path
-								,blnDeleted
-								,listOrder
+
+					if (!empty($result2)) {
+						$updateImage = $this->pdo->prepare("
+							UPDATE
+								blog_images
+							SET
+								path = :path
+							WHERE
+								uuidPost = :uuidPost
+							AND
+								listOrder = 1
+						");
+						$updateImage->execute(array(
+							':path' => $this->_request['fileName'],
+							':uuidPost' => $uuidPost
+						));
+					} else {
+						$addImage = $this->pdo->prepare("
+							INSERT INTO
+								blog_images (
+									uuid
+									,uuidPost
+									,path
+									,blnDeleted
+									,listOrder
+								)
+							VALUES (
+								:uuid
+								,:uuidPost
+								,:path
+								,:blnDeleted
+								,:listOrder
 							)
-						VALUES (
-							:uuid
-							,:uuidPost
-							,:path
-							,:blnDeleted
-							,:listOrder
-						)
-					");
-					$addImage->execute(array(
-						':uuid' => $this->generate_uuid(),
-						':uuidPost' => $uuidPost,
-						':path' => $this->_request['fileName'],
-						':blnDeleted' => 0,
-						':listOrder' => $listOrder
-					));
+						");
+						$addImage->execute(array(
+							':uuid' => $this->generate_uuid(),
+							':uuidPost' => $uuidPost,
+							':path' => $this->_request['fileName'],
+							':blnDeleted' => 0,
+							':listOrder' => $listOrder
+						));
+					}
+					
 				}
 				if (!empty($result)){
 					$updatePost = $this->pdo->prepare("
