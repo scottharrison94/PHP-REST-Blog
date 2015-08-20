@@ -122,7 +122,7 @@
 					,P.slug
 					,P.title
 					,P.body
-					,U.username
+					,U.real_name
 					,P.date_added
 					,C.title AS category
 					,S.title AS status
@@ -231,7 +231,7 @@
 					,P.slug
 					,P.title
 					,P.body
-					,U.username
+					,U.real_name
 					,P.date_added
 					,C.title AS category
 					,S.title AS status
@@ -293,7 +293,7 @@
 						,P.body
 						,P.date_added
 						,P.allowComments
-						,U.username
+						,U.real_name
 						,C.uuid AS uuidComment
 						,C.name AS comment_name
 						,C.text AS comment_text
