@@ -66,7 +66,7 @@
 				if(get_magic_quotes_gpc()){
 					$data = trim(stripslashes($data));
 				}
-				$data = strip_tags($data);
+				//$data = strip_tags($data);
 				$clean_input = trim($data);
 			}
 			return $clean_input;
