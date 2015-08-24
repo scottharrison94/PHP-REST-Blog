@@ -39,7 +39,7 @@
 				$this->response($this->json(array('status'=>'Fail','msg'=>'Method not found')),200); // If the method not exist with in this class "Page not found".
 		}
 
-		private function login(){;
+		private function login(){
 			$username = $this->_request['username'];
 			$password = $this->_request['password'];
 
@@ -267,7 +267,6 @@
 					ON C.uuid = P.uuidCategory
 				WHERE
 					P.blnDeleted = 0
-					AND S.title = 'published'
 				GROUP BY P.uuid
 				ORDER BY date_added DESC
 			");

@@ -32,11 +32,25 @@
 		 *  Database conection settings for all sites below
 		*/
 		private function beyondLocalConfig() {
-			$DB_SERVER = "127.0.0.1";
-			$DB_USER = "root";
-			$DB_PASSWORD = "123";
-			$DB = "beyond_local";
-			$this->dbConnect($DB_SERVER, $DB_USER, $DB_PASSWORD, $DB);
+			if ($_SERVER['HTTP_HOST'] == 'blog.beyondlocal.dev'){
+				$DB_SERVER = "127.0.0.1";
+				$DB_USER = "root";
+				$DB_PASSWORD = "123";
+				$DB = "beyond_local";
+				$this->dbConnect($DB_SERVER, $DB_USER, $DB_PASSWORD, $DB);
+			}elseif($_SERVER['HTTP_HOST'] == 'blogdemo.beyondlocal.co.uk'){
+				$DB_SERVER = "127.0.0.1";
+				$DB_USER = "demobey1_BLV2";
+				$DB_PASSWORD = "PromoTippedWaiveCynic85";
+				$DB = "demobey1_BLV2";
+				$this->dbConnect($DB_SERVER, $DB_USER, $DB_PASSWORD, $DB);
+			} else {
+				$DB_SERVER = "127.0.0.1";
+				$DB_USER = "";
+				$DB_PASSWORD = "";
+				$DB = "";
+				$this->dbConnect($DB_SERVER, $DB_USER, $DB_PASSWORD, $DB);
+			}
 		}
 
 	}
