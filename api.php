@@ -371,6 +371,7 @@
 					$checkImage = $this->pdo->prepare("
 						SELECT
 							path
+							,listOrder
 						FROM
 							blog_images
 						WHERE
@@ -382,6 +383,11 @@
 						':uuidPost'=>$uuidPost
 					));
 					$result2 = $checkImage->fetch(PDO::FETCH_ASSOC);
+					if (!empty($result2->listOrder)){
+						$listOrder = $result2->listOrder + 1;	
+					} else {
+						$listOrder = 1;
+					}
 					// Add image
 
 					if (!empty($result2)) {
