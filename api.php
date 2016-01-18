@@ -1,9 +1,9 @@
 <?php
  	require_once("Rest.inc.php");
  	require_once("Db_config.php");
-	
+
 	class API extends DB_CONFIG {
-	
+
 		protected $data = "";
 
 		protected $db = NULL;
@@ -26,8 +26,8 @@
 				mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff )
 			);
 		}
-		
-		
+
+
 		/*
 		 * Dynmically call the method based on the query string
 		 */
@@ -161,11 +161,11 @@
 							BC.name
 						FROM
 							blog_comments BC
-						WHERE 
+						WHERE
 							uuidPost = P.uuid
 						ORDER BY
 							BC.date_added DESC
-						LIMIT 
+						LIMIT
 							0,1
 					) AS commentName
 					,(
@@ -226,7 +226,7 @@
 		/* Get All Blog Posts including drafts, for use on the backend */
 		private function allPosts(){
 			$getAllPosts = $this->pdo->prepare("
-				SELECT 
+				SELECT
 					P.uuid
 					,P.slug
 					,P.title
@@ -307,7 +307,7 @@
 					JOIN
 						users U
 						ON U.uuid = P.uuidUser
-					JOIN 
+					JOIN
 						blog_status S
 						ON S.uuid = P.uuidStatus
 					JOIN
@@ -336,6 +336,149 @@
 			} else {
 				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
 			}
+		}
+
+		// Get all comments
+		private function allcomments(){
+			$visible = (!empty($_REQUEST['visible']) ? $_REQUEST['visible'] : 'no');
+			if ($visible == 'yes') {
+				$getPostComments = $this->pdo->prepare("
+					SELECT
+						P.title
+						,C.uuid AS uuidComment
+						,C.name AS comment_name
+	                    ,C.text AS comment_text
+	                    ,C.blnVisible as status
+	                    ,C.date_added
+					FROM
+						blog_posts P
+					JOIN
+						blog_comments C
+						ON C.uuidPost = P.uuid
+					WHERE
+						P.blnDeleted = 0
+						AND C.blnVisible = 1
+					ORDER BY
+						C.date_added DESC
+				");
+				$getPostComments->execute();
+			} elseif ($visible == 'no') {
+				$getPostComments = $this->pdo->prepare("
+					SELECT
+						P.title
+						,C.uuid AS uuidComment
+						,C.name AS comment_name
+	                    ,C.text AS comment_text
+	                    ,C.blnVisible as status
+	                    ,C.date_added
+					FROM
+						blog_posts P
+					JOIN
+						blog_comments C
+						ON C.uuidPost = P.uuid
+					WHERE
+						P.blnDeleted = 0
+						AND C.blnDeleted = 0
+					ORDER BY
+						C.date_added DESC
+				");
+				$getPostComments->execute();
+			}
+			$result = $getPostComments->fetchAll(PDO::FETCH_ASSOC);
+			if(count($result)) {
+				// If success everything is good send header as "OK" and user details
+				$this->response($this->json($result), 200);
+			} else {
+				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
+			}
+		}
+
+		/* Get comments By SLUG (Not deleted) */
+		private function comments(){
+			$postSlug = (!empty($_REQUEST['slug']) ? $_REQUEST['slug'] : NULL);
+			$visible = (!empty($_REQUEST['visible']) ? $_REQUEST['visible'] : 'no');
+			if ($visible == 'yes') {
+				$visible = 1;
+			} elseif ($visible == 'no') {
+				$visible = 0;
+			}
+			if (!empty($postSlug)){
+
+				$getPostComments = $this->pdo->prepare("
+					SELECT
+						P.title
+						,C.uuid AS uuidComment
+						,C.name AS comment_name
+                        ,C.text AS comment_text
+                        ,C.blnVisible as status
+                        ,C.date_added
+					FROM
+						blog_posts P
+					JOIN
+						blog_comments C
+						ON C.uuidPost = P.uuid
+					WHERE
+						P.slug = :postSlug
+						AND P.blnDeleted = 0
+						AND C.blnVisible = :visible
+					ORDER BY
+						C.date_added ASC
+				");
+				$getPostComments->execute(array(
+					':postSlug' => $postSlug,
+					':visible'=> $visible
+				));
+				$result = $getPostComments->fetchAll(PDO::FETCH_ASSOC);
+				if(count($result)) {
+					// If success everything is good send header as "OK" and user details
+					$this->response($this->json($result), 200);
+				} else {
+					$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
+				}
+			} else {
+				$this->response($this->json(array('status'=>'Fail','msg'=>'No records found')), 200);	// If no records "No Content" status
+			}
+		}
+
+		// Update comment status
+		private function updatecommentstatus() {
+			$visible = (!empty($_REQUEST['visible']) ? $_REQUEST['visible'] : 'no');
+			$uuid = (!empty($_REQUEST['uuid']) ? $_REQUEST['uuid'] : '');
+			if ($visible == 'yes') {
+				$visible = 1;
+			} elseif ($visible == 'no') {
+				$visible = 0;
+			}
+			$updatePostStatus = $this->pdo->prepare("
+				UPDATE
+					blog_comments
+				SET
+					blnVisible = :visible
+				WHERE
+					uuid = :uuid
+			");
+			$updatePostStatus->execute(array(
+				':visible' => $visible,
+				':uuid' => $uuid
+			));
+			$this->response($this->json(array('status'=>'Success','msg'=>'Comment status updated.')),200);
+		}
+
+		// Delete comment
+		private function deletecomment() {
+			$uuid = (!empty($_REQUEST['uuid']) ? $_REQUEST['uuid'] : '');
+			$deleteComment = $this->pdo->prepare("
+				UPDATE
+					blog_comments
+				SET
+					blnDeleted = 1
+				WHERE
+					uuid = :uuid
+			");
+			$deleteComment->execute(array(
+				'uuid' => $uuid
+			));
+			$this->response($this->json(array('status'=>'Success','msg'=>'Comment deleted.')),200);
 		}
 
 		/* Upsert blog post */
@@ -431,7 +574,7 @@
 							':listOrder' => $listOrder
 						));
 					}
-					
+
 				}
 				if (!empty($result)){
 					$updatePost = $this->pdo->prepare("
@@ -496,7 +639,7 @@
 						':uuidStatus' => $uuidStatus,
 					));
 				}
-				$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);	
+				$this->response($this->json(array('status'=>'Success','msg'=>'Post added')),200);
 			} else {
 				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 200);
 			}
@@ -517,6 +660,7 @@
 							,name
 							,text
 							,date_added
+							,blnVisible
 							,blnDeleted
 							,uuidPost
 						)
@@ -525,6 +669,7 @@
 						,:name
 						,:text
 						,:date
+						,0
 						,0
 						,:uuidPost
 					)
@@ -608,7 +753,7 @@
 					':title' => $title,
 					':slug' => $slug
 				));
-				$this->response($this->json(array('status'=>'Success','msg'=>'Category added')),200);				
+				$this->response($this->json(array('status'=>'Success','msg'=>'Category added')),200);
 			} else {
 				$this->response($this->json(array('status'=>'Failed','msg'=>'User not authenticated')), 401);
 			}
@@ -676,7 +821,7 @@
 		// 		$query="SELECT id, username, real_name, email, bio FROM anchor_users WHERE id = '$userID'";
 		// 		$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 		// 		if($r->num_rows > 0) {
-		// 			$result = $r->fetch_assoc();	
+		// 			$result = $r->fetch_assoc();
 		// 			// If success everythig is good send header as "OK" and user details
 		// 			$this->response($this->json($result), 200);
 		// 		}
@@ -686,7 +831,7 @@
 		// 	$this->response($this->json($error), 400);
 		// }
 
-		
+
 
 		/* Get Approved Blog Post Comments By Blog Post ID */
 		// private function comments(){
@@ -695,7 +840,7 @@
 		// 		$query="SELECT id, post, status, `date`, name, `email`, text FROM anchor_comments WHERE post = '$postID' AND status = 'Approved'";
 		// 		$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 		// 		if($r->num_rows > 0) {
-		// 			$result = $r->fetch_assoc();	
+		// 			$result = $r->fetch_assoc();
 		// 			// If success everythig is good send header as "OK" and user details
 		// 			$this->response($this->json($result), 200);
 		// 		}
@@ -706,8 +851,8 @@
 		// 	$this->response($this->json($error), 400);
 		// }
 
-		/*	
-		private function customers(){	
+		/*
+		private function customers(){
 			if($this->get_request_method() != "GET"){
 				$this->response('',406);
 			}
@@ -723,22 +868,22 @@
 			}
 			$this->response('',204);	// If no records "No Content" status
 		}
-		private function customer(){	
+		private function customer(){
 			if($this->get_request_method() != "GET"){
 				$this->response('',406);
 			}
 			$id = (int)$this->_request['id'];
-			if($id > 0){	
+			if($id > 0){
 				$query="SELECT distinct c.customerNumber, c.customerName, c.email, c.address, c.city, c.state, c.postalCode, c.country FROM angularcode_customers c where c.customerNumber=$id";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				if($r->num_rows > 0) {
-					$result = $r->fetch_assoc();	
+					$result = $r->fetch_assoc();
 					$this->response($this->json($result), 200); // send user details
 				}
 			}
 			$this->response('',204);	// If no records "No Content" status
 		}
-		
+
 		private function insertCustomer(){
 			if($this->get_request_method() != "POST"){
 				$this->response('',406);
@@ -792,13 +937,13 @@
 			}else
 				$this->response('',204);	// "No Content" status
 		}
-		
+
 		private function deleteCustomer(){
 			if($this->get_request_method() != "DELETE"){
 				$this->response('',406);
 			}
 			$id = (int)$this->_request['id'];
-			if($id > 0){				
+			if($id > 0){
 				$query="DELETE FROM angularcode_customers WHERE customerNumber = $id";
 				$r = $this->mysqli->query($query) or die($this->mysqli->error.__LINE__);
 				$success = array('status' => "Success", "msg" => "Successfully deleted one record.");
@@ -806,7 +951,7 @@
 			}else
 				$this->response('',204);	// If no records "No Content" status
 		}*/
-		
+
 		/*
 		 *	Encode array into JSON
 		*/
@@ -816,9 +961,9 @@
 			}
 		}
 	}
-	
+
 	// Initiiate Library
-	
+
 	$api = new API;
 	$api->processApi();
 ?>
