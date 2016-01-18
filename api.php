@@ -155,6 +155,7 @@
 							blog_comments BC
 						WHERE
 							uuidPost = P.uuid
+							AND BC.blnVisible = 1
 					) AS commentCount
 					,(
 						SELECT
@@ -527,7 +528,7 @@
 					));
 					$result2 = $checkImage->fetch(PDO::FETCH_ASSOC);
 					if (!empty($result2->listOrder)){
-						$listOrder = $result2->listOrder + 1;	
+						$listOrder = $result2->listOrder + 1;
 					} else {
 						$listOrder = 1;
 					}
